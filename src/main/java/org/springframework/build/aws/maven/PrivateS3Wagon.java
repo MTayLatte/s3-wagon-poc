@@ -105,9 +105,9 @@ public final class PrivateS3Wagon extends AbstractWagon {
 
             this.bucketName = S3Utils.getBucketName(repository);
             this.baseDirectory = S3Utils.getBaseDirectory(repository);
-            System.out.println("this.bucketName: " + this.bucketName);
-            System.out.println("this.baseDirectory: " + this.baseDirectory); 
-            System.out.println("--------------------------------------------");
+//            System.out.println("this.bucketName: " + this.bucketName);
+//            System.out.println("this.baseDirectory: " + this.baseDirectory); 
+//            System.out.println("--------------------------------------------");
             // if AuthenticationInfo is null or empty, use the default provider from AWS SDK
             boolean defaultCredProvider = false;
             if (authenticationInfo == null) {
