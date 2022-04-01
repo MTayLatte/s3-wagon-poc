@@ -39,7 +39,11 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.DefaultAwsRegionProviderChain;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
@@ -51,6 +55,11 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceAsyncClientBuilder;
+import com.amazonaws.services.securitytoken.model.AssumeRoleRequest;
+import com.amazonaws.services.securitytoken.model.AssumeRoleResult;
+import com.amazonaws.services.securitytoken.model.Credentials;
 
 /**
  * An implementation of the Maven Wagon interface that allows you to access the Amazon S3 service. URLs that reference
@@ -96,7 +105,9 @@ public final class PrivateS3Wagon extends AbstractWagon {
 
             this.bucketName = S3Utils.getBucketName(repository);
             this.baseDirectory = S3Utils.getBaseDirectory(repository);
-
+            System.out.println("this.bucketName: " + this.bucketName);
+            System.out.println("this.baseDirectory: " + this.baseDirectory); 
+            System.out.println("--------------------------------------------");
             // if AuthenticationInfo is null or empty, use the default provider from AWS SDK
             boolean defaultCredProvider = false;
             if (authenticationInfo == null) {
@@ -108,12 +119,31 @@ public final class PrivateS3Wagon extends AbstractWagon {
                         authenticationInfo.getPrivateKey().equals(""))) {
                 defaultCredProvider = true;
             }
+            // new code --------------------------------------------
+            AWSCredentialsProvider credentialsProvider;
+            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceAsyncClientBuilder.standard()
+                    .withCredentials(new ProfileCredentialsProvider("default"))
+                    .withRegion("us-east-1")
+                    .build();
 
+            AssumeRoleRequest assumeRoleRequest = new AssumeRoleRequest().withDurationSeconds(3600)
+                    .withRoleArn("arn:aws:iam::550646804684:role/AccountArole")
+                    .withRoleSessionName("masons3test"); // "arn:aws:iam::1234567890987:role/Super-Important-Role"
+
+            AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
+            Credentials creds = assumeRoleResult.getCredentials();
+
+            credentialsProvider = new AWSStaticCredentialsProvider(
+                    new BasicSessionCredentials(creds.getAccessKeyId(),
+                            creds.getSecretAccessKey(),
+                            creds.getSessionToken())
+            );
+            // new code --------------------------------------------
             if (defaultCredProvider) {
                 this.amazonS3 = new AmazonS3Client(new DefaultAWSCredentialsProviderChain(), clientConfiguration);
             } else {
                 AWSCredentials awsCredentials = new AuthenticationInfoAWSCredentials(authenticationInfo);
-                this.amazonS3 = new AmazonS3Client(awsCredentials, clientConfiguration);
+                this.amazonS3 = new AmazonS3Client(credentialsProvider, clientConfiguration);
             }
 
             try {
