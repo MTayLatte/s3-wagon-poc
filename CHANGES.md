@@ -1,3 +1,5 @@
+# Update
+Added assumeRole functionality for connecting to private s3 bucket
 # Change Log
 All notable changes to this project will be documented in this file.
 
